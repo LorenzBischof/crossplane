@@ -44,7 +44,7 @@ type Cmd struct {
 	CacheDir              string `default:"~/.crossplane/cache"                                                       help:"Absolute path to the cache directory where downloaded schemas are stored." predictor:"directory"`
 	CleanCache            bool   `help:"Clean the cache directory before downloading package schemas."`
 	SkipSuccessResults    bool   `help:"Skip printing success results."`
-	CrossplaneImage       string `help:"Specify the Crossplane image to be used for validating the built-in schemas."`
+	CrossplaneImage       *string `help:"Specify the Crossplane image to be used for validating the built-in schemas. Set to an empty string to disable downloading the Crossplane image."`
 	ErrorOnMissingSchemas bool   `default:"false"                                                                     help:"Return non zero exit code if not all schemas are provided."`
 	fs                    afero.Fs
 }
@@ -99,8 +99,9 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 		return errors.New("cannot use stdin for both extensions and resources")
 	}
 
-	if len(c.CrossplaneImage) < 1 {
-		c.CrossplaneImage = fmt.Sprintf("xpkg.crossplane.io/crossplane/crossplane:%s", version.New().GetVersionString())
+	if c.CrossplaneImage == nil {
+		img := fmt.Sprintf("xpkg.crossplane.io/crossplane/crossplane:%s", version.New().GetVersionString())
+		c.CrossplaneImage = &img
 	}
 
 	// Load all extensions
@@ -130,7 +131,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 		c.CacheDir = filepath.Join(homeDir, c.CacheDir[2:])
 	}
 
-	m := NewManager(c.CacheDir, c.fs, k.Stdout, WithCrossplaneImage(c.CrossplaneImage))
+	m := NewManager(c.CacheDir, c.fs, k.Stdout, WithCrossplaneImage(*c.CrossplaneImage))
 
 	// Convert XRDs/CRDs to CRDs and add package dependencies
 	if err := m.PrepExtensions(extensions); err != nil {
